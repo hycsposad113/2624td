@@ -5,8 +5,14 @@
   // ---------- 基本設定 ----------
   const CONFIG = window.APP_CONFIG || {};
   const DEMO = !CONFIG.APPS_SCRIPT_URL;
-  const MEMBERS = ['Jack', 'Monica', 'Ryan', 'Jerry']; // 同時也是值班的固定順序
-  const ANCHOR_WEEK = '2026-11-02';                    // 這一週（週一）由 Jack 值班
+  const MEMBERS = ['Jack', 'Monica', 'Ryan', 'Jerry'];
+  // 值班安排：from 是週一，從那週起照 order 循環。有人長期不在時，加一段就好。
+  const AWAY_NOTE = '每週一換人。Jerry 回台灣期間由 Jack → Monica → Ryan 輪流，12/21 那週起 Jerry 回到輪值。';
+  const DUTY_PLAN = [
+    { from: '2026-11-02', order: ['Jerry'], note: AWAY_NOTE },
+    { from: '2026-11-09', order: ['Jack', 'Monica', 'Ryan'], note: AWAY_NOTE },
+    { from: '2026-12-21', order: ['Jerry', 'Jack', 'Monica', 'Ryan'], note: '每週一換人，順序是 Jerry → Jack → Monica → Ryan。' }
+  ];
   const EVENT_TYPES = ['外出', '訪客用餐', '訪客住宿', '其他'];
   const TYPE_CLASS = { '外出': 't-out', '訪客用餐': 't-meal', '訪客住宿': 't-stay', '其他': 't-other' };
   const SHEET_KEY = { events: 'id', consumables: 'id', utilities: 'id', duty: 'week', settlements: 'quarter' };
@@ -110,9 +116,13 @@
   };
 
   // ---------- 排班 ----------
+  function dutyPeriod(weekKey) {
+    return DUTY_PLAN.filter((p) => p.from <= weekKey).pop() || DUTY_PLAN[0];
+  }
   function baseDuty(weekKey) {
-    const weeks = Math.round(diffDays(ANCHOR_WEEK, weekKey) / 7);
-    return MEMBERS[((weeks % MEMBERS.length) + MEMBERS.length) % MEMBERS.length];
+    const p = dutyPeriod(weekKey);
+    const weeks = Math.round(diffDays(p.from, weekKey) / 7);
+    return p.order[((weeks % p.order.length) + p.order.length) % p.order.length];
   }
   function dutyRow(weekKey) { return state.data.duty.find((r) => r.week === weekKey && r.person); }
   function dutyFor(weekKey) { const r = dutyRow(weekKey); return r ? r.person : baseDuty(weekKey); }
@@ -345,7 +355,7 @@
     const hint = state.swapPick
       ? '已選 ' + fmtWeek(state.swapPick) + '，再點另一週就會互換；點同一週取消。'
       : '按住一週拖到另一週可以互換，也可以先點一週、再點另一週。';
-    const canPrev = addMonths(m, -1).getTime() >= startOfMonth(parseYmd(ANCHOR_WEEK)).getTime();
+    const canPrev = addMonths(m, -1).getTime() >= startOfMonth(parseYmd(DUTY_PLAN[0].from)).getTime();
 
     $('#tab-duty').innerHTML =
       '<section class="now">' +
@@ -362,7 +372,7 @@
       '</div>' +
       '<p class="hint" aria-live="polite">' + esc(hint) + '</p>' +
       '<ul class="duty-list">' + rows + '</ul>' +
-      '<p class="hint">每週一換人，順序是 ' + MEMBERS.join(' → ') + '。</p>';
+      '<p class="hint">' + esc(dutyPeriod(thisWeek).note) + '</p>';
   }
 
   function swapWeeks(a, b) {

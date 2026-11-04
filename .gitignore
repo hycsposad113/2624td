@@ -1,0 +1,7 @@
+# 公開 repo 只放網站本體，其他都留在本機
+*
+!.gitignore
+!index.html
+!styles.css
+!app.js
+!config.js

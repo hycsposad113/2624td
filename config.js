@@ -8,6 +8,6 @@
  * CURRENCY：幣別代碼（EUR、TWD⋯⋯）。
  */
 window.APP_CONFIG = {
-  APPS_SCRIPT_URL: '',
+  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzWikAUUU5LbL3Q3pk6N0Rh35pyeTYFPvQxCgq7ZnzDoCuy63uahOQvorAYoDKUDfaoYQ/exec',
   CURRENCY: 'EUR'
 };

@@ -118,13 +118,29 @@
   function dutyPeriod(weekKey) {
     return DUTY_PLAN.filter((p) => p.from <= weekKey).pop() || DUTY_PLAN[0];
   }
-  function baseDuty(weekKey) {
-    const p = dutyPeriod(weekKey);
-    const weeks = Math.round(diffDays(p.from, weekKey) / 7);
-    return p.order[((weeks % p.order.length) + p.order.length) % p.order.length];
+  // 排班是接著往下輪的：沒指定的週 = 上一週的下一位；指定某人後，後面從他接著輪。
+  // 不在這段順序裡的人（例如 Jerry 不在時臨時代班）只算那一週，不影響後面。
+  function dutyWalk(target, ignoreTarget) {
+    const p = dutyPeriod(target);
+    if (target < p.from) return p.order[0];
+    const picked = {};
+    state.data.duty.forEach((r) => { if (r.person) picked[r.week] = r.person; });
+    let i = -1, person = p.order[0];
+    for (let wk = p.from; wk <= target; wk = shiftKey(wk, 7)) {
+      const chosen = ignoreTarget && wk === target ? '' : picked[wk];
+      if (chosen) {
+        person = chosen;
+        if (p.order.indexOf(chosen) !== -1) i = p.order.indexOf(chosen);
+      } else {
+        i = (i + 1) % p.order.length;
+        person = p.order[i];
+      }
+    }
+    return person;
   }
+  function baseDuty(weekKey) { return dutyWalk(weekKey, true); } // 這週沒指定時會輪到誰
   function dutyRow(weekKey) { return state.data.duty.find((r) => r.week === weekKey && r.person); }
-  function dutyFor(weekKey) { const r = dutyRow(weekKey); return r ? r.person : baseDuty(weekKey); }
+  function dutyFor(weekKey) { return dutyWalk(weekKey, false); }
   // 改回原本輪到的人時就清掉調整紀錄，「已調整」標籤才會準
   function dutyItem(week, person) { return { week: week, person: person === baseDuty(week) ? '' : person }; }
 
@@ -369,7 +385,7 @@
           '<button type="button" class="btn ghost icon" data-action="duty-next" aria-label="下個月">' + ICON.right + '</button>' +
         '</div>' +
       '</div>' +
-      '<p class="hint">排班會自動輪，沒問題就不用動。要改的話直接選人，或按住一週拖到另一週互換。</p>' +
+      '<p class="hint">排班會自動輪，沒問題就不用動。改某一週的人，後面會從他接著輪；只想兩週對調，就按住一週拖到另一週。</p>' +
       '<ul class="duty-list">' + rows + '</ul>' +
       '<p class="hint">' + esc(dutyPeriod(thisWeek).note) + '</p>';
   }
@@ -377,7 +393,13 @@
   function swapWeeks(a, b) {
     const pa = dutyFor(a), pb = dutyFor(b);
     if (pa === pb) { toast('這兩週是同一個人'); renderDuty(); return; }
-    mutate('setDuty', { items: [dutyItem(a, pb), dutyItem(b, pa)] }, '已互換 ' + fmtWeek(a) + ' 和 ' + fmtWeek(b));
+    // 互換只動這兩週：把它們的下一週固定住，其他週不會跟著位移
+    const items = [{ week: a, person: pb }, { week: b, person: pa }];
+    [a, b].forEach((wk) => {
+      const next = shiftKey(wk, 7);
+      if (next !== a && next !== b) items.push({ week: next, person: dutyFor(next) });
+    });
+    mutate('setDuty', { items: items }, '已互換 ' + fmtWeek(a) + ' 和 ' + fmtWeek(b));
   }
 
   // ---------- 拖拉 ----------

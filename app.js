@@ -111,7 +111,6 @@
     tab: 'duty',
     dutyMonth: startOfMonth(new Date()),
     calMonth: startOfMonth(new Date()),
-    swapPick: null,
     settleQ: null
   };
 
@@ -339,22 +338,22 @@
     const rows = weeks.map((wk) => {
       const name = dutyFor(wk);
       const adjusted = !!dutyRow(wk);
-      const picked = state.swapPick === wk;
-      return '<li class="duty-row' + (picked ? ' picked' : '') + (wk === thisWeek ? ' current' : '') + '" data-week="' + wk + '">' +
+      const repeat = (wk > DUTY_PLAN[0].from && name === dutyFor(shiftKey(wk, -7))) || name === dutyFor(shiftKey(wk, 7));
+      return '<li class="duty-row' + (wk === thisWeek ? ' current' : '') + '" data-week="' + wk + '">' +
         ICON.grip +
-        '<button type="button" class="duty-hit" data-action="pick-week" data-week="' + wk + '" aria-pressed="' + picked + '">' +
+        '<div class="duty-hit">' +
           '<span class="duty-range">' + fmtWeek(wk) + '</span>' +
           (wk === thisWeek ? '<span class="tag">本週</span>' : '') +
           (adjusted ? '<span class="tag soft">已調整</span>' : '') +
-          '<span class="duty-name">' + esc(name) + '</span>' +
-        '</button>' +
+          (repeat ? '<span class="tag alert">連續兩週</span>' : '') +
+        '</div>' +
         (adjusted ? '<button type="button" class="link-btn" data-action="restore-week" data-week="' + wk + '">還原</button>' : '') +
+        '<select class="duty-select" data-week="' + wk + '" aria-label="' + fmtWeek(wk) + ' 由誰值班">' +
+          MEMBERS.map((p) => '<option value="' + p + '"' + (p === name ? ' selected' : '') + '>' + p + '</option>').join('') +
+        '</select>' +
         '</li>';
     }).join('');
 
-    const hint = state.swapPick
-      ? '已選 ' + fmtWeek(state.swapPick) + '，再點另一週就會互換；點同一週取消。'
-      : '按住一週拖到另一週可以互換，也可以先點一週、再點另一週。';
     const canPrev = addMonths(m, -1).getTime() >= startOfMonth(parseYmd(DUTY_PLAN[0].from)).getTime();
 
     $('#tab-duty').innerHTML =
@@ -370,13 +369,12 @@
           '<button type="button" class="btn ghost icon" data-action="duty-next" aria-label="下個月">' + ICON.right + '</button>' +
         '</div>' +
       '</div>' +
-      '<p class="hint" aria-live="polite">' + esc(hint) + '</p>' +
+      '<p class="hint">排班會自動輪，沒問題就不用動。要改的話直接選人，或按住一週拖到另一週互換。</p>' +
       '<ul class="duty-list">' + rows + '</ul>' +
       '<p class="hint">' + esc(dutyPeriod(thisWeek).note) + '</p>';
   }
 
   function swapWeeks(a, b) {
-    state.swapPick = null;
     const pa = dutyFor(a), pb = dutyFor(b);
     if (pa === pb) { toast('這兩週是同一個人'); renderDuty(); return; }
     mutate('setDuty', { items: [dutyItem(a, pb), dutyItem(b, pa)] }, '已互換 ' + fmtWeek(a) + ' 和 ' + fmtWeek(b));
@@ -449,7 +447,7 @@
     const clear = () => $$('.duty-row.over, .duty-row.dragging').forEach((r) => r.classList.remove('over', 'dragging'));
     gesture($('#tab-duty'), {
       begin(e) {
-        if (e.target.closest('.link-btn')) return null;
+        if (e.target.closest('.link-btn, select')) return null;
         const row = e.target.closest('.duty-row');
         return row ? { row: row, week: row.dataset.week, target: null } : null;
       },
@@ -1061,11 +1059,6 @@
   function bindActions() {
     const actions = {
       'reload': () => firstLoad(),
-      'pick-week': (el) => {
-        const wk = el.dataset.week;
-        if (state.swapPick && state.swapPick !== wk) swapWeeks(state.swapPick, wk);
-        else { state.swapPick = state.swapPick === wk ? null : wk; renderDuty(); }
-      },
       'restore-week': (el) => mutate('setDuty', { items: [{ week: el.dataset.week, person: '' }] }, '已還原成固定順序'),
       'duty-prev': () => { state.dutyMonth = addMonths(state.dutyMonth, -1); renderDuty(); },
       'duty-next': () => { state.dutyMonth = addMonths(state.dutyMonth, 1); renderDuty(); },
@@ -1098,6 +1091,10 @@
     });
     document.addEventListener('change', (e) => {
       if (e.target.id === 'settleQ') { state.settleQ = e.target.value; renderSettle(); }
+      if (e.target.classList.contains('duty-select')) {
+        const week = e.target.dataset.week;
+        mutate('setDuty', { items: [dutyItem(week, e.target.value)] }, fmtWeek(week) + ' 改由 ' + e.target.value + ' 值班');
+      }
     });
     // 拖拉中不要讓頁面跟著捲動；手機長按也不要跳出選單
     document.addEventListener('touchmove', (e) => { if (gestureActive) e.preventDefault(); }, { passive: false });

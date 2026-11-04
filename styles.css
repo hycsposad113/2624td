@@ -438,6 +438,13 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 .settle-status { margin-top: 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 16px; border-radius: var(--radius); background: var(--bg-2); font-weight: 500; }
 .settle-status.done { background: #dfeadf; }
 
+/* ---------- 生活公約 ---------- */
+.rules-page { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.rule-group { padding: 16px 20px 18px; border-top: 1px solid var(--line); }
+.rule-group:first-child { border-top: 0; }
+.rule-group ul { display: grid; gap: 6px; margin-top: 8px; padding-left: 1.1em; list-style: disc; max-width: 68ch; }
+.rule-group li::marker { color: var(--accent); }
+
 /* ---------- 對話框 ---------- */
 dialog {
   border: 1px solid var(--line);
@@ -506,7 +513,7 @@ dialog::backdrop { background: rgba(43, 36, 32, 0.35); animation: fade-in 200ms 
     bottom: 0;
     z-index: 5;
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 0;
     background: var(--surface);
     border-top: 1px solid var(--line);

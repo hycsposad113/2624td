@@ -10,8 +10,32 @@
   const EVENT_TYPES = ['外出', '訪客用餐', '訪客住宿', '其他'];
   const TYPE_CLASS = { '外出': 't-out', '訪客用餐': 't-meal', '訪客住宿': 't-stay', '其他': 't-other' };
   const SHEET_KEY = { events: 'id', consumables: 'id', utilities: 'id', duty: 'week', settlements: 'quarter' };
-  const TABS = ['duty', 'calendar', 'consumables', 'utilities', 'settle'];
+  const TABS = ['duty', 'calendar', 'consumables', 'utilities', 'settle', 'rules'];
   const DUTY_TASKS = ['倒垃圾（太多時可以找人一起）', '清理客廳等公共空間', '清理廁所排水孔'];
+  const HOUSE_RULES = [
+    { title: '作息', items: [
+      '週日到週四隔天要上班，晚上 10 點後大家一起把音量放輕。',
+      '週五、週六可以放鬆一點，有人在休息時留意一下音量就好。'
+    ] },
+    { title: '朋友來訪', items: [
+      '歡迎朋友來玩！先標在行事曆上，大家就知道那天家裡有客人。',
+      '週日到週四晚上，朋友盡量 10 點前回家。',
+      '朋友要住超過 2 晚，先在群組說一聲。'
+    ] },
+    { title: '公共空間', items: [
+      '廚房和浴室用完順手恢復原樣，下一個人用起來也舒服。',
+      '倒垃圾、清客廳和排水孔，照家事頁的輪值來。'
+    ] },
+    { title: '消耗品與費用', items: [
+      '洗手乳、洗碗精、菜瓜布、垃圾袋、水管疏通劑這些公共消耗品，買了就記在網站上，4 人平分。',
+      '偶爾要換的廚具也可以記，例如不沾鍋的塗層沒了要買新鍋子。',
+      '水電和暖氣的帳單由 Jerry 統一計算。'
+    ] },
+    { title: '互相幫忙', items: [
+      '有困難、想換班或需要幫忙，都可以直接在群組說。',
+      '要出門或有朋友來，記得更新行事曆。'
+    ] }
+  ];
   const CATEGORY_HINTS = ['清潔用品', '廚房', '食物', '衛生用品'];
   const UTILITY_HINTS = ['電費', '水費', '暖氣', '瓦斯', '網路'];
   const PW_KEY = '2624td-pw';
@@ -278,7 +302,7 @@
 
   // ---------- 渲染 ----------
   function renderAll() {
-    const pages = { duty: renderDuty, calendar: renderCalendar, consumables: renderConsumables, utilities: renderUtilities, settle: renderSettle };
+    const pages = { duty: renderDuty, calendar: renderCalendar, consumables: renderConsumables, utilities: renderUtilities, settle: renderSettle, rules: renderRules };
     if (!state.data) {
       const html = state.loadError
         ? '<div class="load-state"><p>' + esc(state.loadError) + '</p><button type="button" class="btn primary" data-action="reload">重新連線</button></div>'
@@ -784,6 +808,16 @@
           : '<span>' + (inProgress ? '這一季還沒結束' : '這一季還沒結清') + '</span><button type="button" class="btn ' + (inProgress ? 'ghost' : 'primary') + ' small" data-action="settle" data-q="' + q + '">標記結清</button>') +
       '</div>' +
       (now.notSplit ? '<p class="muted small note">另有 ' + money(now.notSplit / 100) + ' 的「不分攤」項目，沒有算進來。</p>' : '');
+  }
+
+  // ---------- 生活公約 ----------
+  function renderRules() {
+    $('#tab-rules').innerHTML =
+      '<div class="panel-head"><div><h2>生活公約</h2><p class="hint">一起住得舒服的幾個小約定。</p></div></div>' +
+      '<div class="rules-page">' + HOUSE_RULES.map((g) =>
+        '<section class="rule-group"><h3>' + esc(g.title) + '</h3><ul>' +
+        g.items.map((t) => '<li>' + esc(t).replace(/(\d) (點|晚|人)/g, '$1\u00a0$2') + '</li>').join('') + '</ul></section>').join('') +
+      '</div>';
   }
 
   // ---------- 表單 ----------

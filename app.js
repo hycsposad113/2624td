@@ -874,8 +874,9 @@
       input = '<input id="' + id + '" name="' + f.name + '" list="dl-' + f.name + '" value="' + esc(v) + '"' + req + ' autocomplete="off" placeholder="' + esc(f.placeholder || '') + '">' +
         '<datalist id="dl-' + f.name + '">' + f.list.map((x) => '<option value="' + esc(x) + '">').join('') + '</datalist>';
     } else {
-      const attrs = f.type === 'number' ? ' inputmode="decimal" min="0" step="0.01"' : '';
-      input = '<input id="' + id + '" type="' + (f.type || 'text') + '" name="' + f.name + '" value="' + esc(v) + '"' + req + attrs + ' placeholder="' + esc(f.placeholder || '') + '">';
+      // 金額用文字欄位：歐洲手機鍵盤的小數點是逗號，type=number 會把「1,50」當成無效
+      const attrs = f.type === 'number' ? ' inputmode="decimal" autocomplete="off"' : '';
+      input = '<input id="' + id + '" type="' + (f.type === 'number' ? 'text' : (f.type || 'text')) + '" name="' + f.name + '" value="' + esc(v) + '"' + req + attrs + ' placeholder="' + esc(f.placeholder || '') + '">';
     }
     return '<div class="field' + (f.half ? ' half' : '') + '"' + wrapAttrs + '><label for="' + id + '"><span class="field-label">' + esc(f.label) + '</span></label>' + input + hint + '</div>';
   }
@@ -932,7 +933,7 @@
         const el = form.elements.namedItem(f.name); // 不能用 elements[name]：欄位叫 item 時會拿到內建方法
         if (!visible(f, cur)) out[f.name] = '';
         else if (f.type === 'checkbox') out[f.name] = el.checked ? 'Y' : 'N';
-        else if (f.type === 'number') out[f.name] = Number(el.value) || 0;
+        else if (f.type === 'number') out[f.name] = parseAmount(el.value);
         else out[f.name] = String(el.value).trim();
       });
       const problem = opts.validate ? opts.validate(out) : '';
@@ -1000,7 +1001,15 @@
     list.forEach((r) => { if (r[key] && out.indexOf(r[key]) === -1) out.push(r[key]); });
     return out;
   }
-  function checkAmount(v) { return v.amount > 0 ? '' : '金額要大於 0。'; }
+  // 接受 1.5、1,50、€ 2,30 這類寫法；格式不對回傳 NaN
+  function parseAmount(raw) {
+    const s = String(raw).replace(/[€\s]/g, '').replace(',', '.');
+    return /^\d+(\.\d{1,2})?$|^\.\d{1,2}$/.test(s) ? Math.round(Number(s) * 100) / 100 : NaN;
+  }
+  function checkAmount(v) {
+    if (isNaN(v.amount)) return '金額格式不對，例如 3.5 或 3,50（最多兩位小數）。';
+    return v.amount > 0 ? '' : '金額要大於 0。';
+  }
   function consumableFields() {
     return [
       { name: 'item', label: '買了什麼', required: true, placeholder: '例如：衛生紙 12 捲' },
